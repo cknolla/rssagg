@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"net/http"
 	"rssagg/internal/database"
@@ -26,8 +27,12 @@ func (apiCfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Reques
 		UpdatedAt: time.Now().UTC(),
 	})
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Could not create user")
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Could not create user: %s", err.Error()))
 		return
 	}
-	respondWithJSON(w, http.StatusOK, user)
+	respondWithJSON(w, http.StatusCreated, databaseUserToUser(user))
+}
+
+func (apiCfg *apiConfig) handlerGetUserByApiKey(w http.ResponseWriter, r *http.Request, user database.User) {
+	respondWithJSON(w, http.StatusOK, databaseUserToUser(user))
 }
