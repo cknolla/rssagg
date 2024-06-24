@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (apiCfg *apiConfig) handlerFeed(w http.ResponseWriter, r *http.Request, user database.User) {
+func (apiCfg *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, user database.User) {
 	type params struct {
 		Name string `json:"name"`
 		Url  string `json:"url"`
@@ -34,4 +34,13 @@ func (apiCfg *apiConfig) handlerFeed(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 	respondWithJSON(w, http.StatusCreated, databaseFeedToFeed(feed))
+}
+
+func (apiCfg *apiConfig) handlerGetFeeds(w http.ResponseWriter, r *http.Request) {
+	feeds, err := apiCfg.DB.GetFeeds(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, databaseFeedsToFeeds(feeds))
 }
