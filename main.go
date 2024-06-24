@@ -10,10 +10,13 @@ import (
 	"net/http"
 	"os"
 	"rssagg/internal/database"
+	"strconv"
+	"time"
 )
 
 type apiConfig struct {
-	DB *database.Queries
+	DB            *database.Queries
+	scrapeThreads int32
 }
 
 func main() {
@@ -36,8 +39,19 @@ func main() {
 		log.Fatalln("can't connect to database", err)
 	}
 
+	scrapeThreads := int32(5)
+	scrapeThreadsStr := os.Getenv("SCRAPE_THREADS")
+	if scrapeThreadsStr != "" {
+		threads, err := strconv.ParseInt(scrapeThreadsStr, 10, 32)
+		if err != nil {
+			log.Fatalln("bad value for SCRAPE_THREADS env var", err)
+		}
+		scrapeThreads = int32(threads)
+	}
+
 	apiCfg := apiConfig{
-		DB: database.New(conn),
+		DB:            database.New(conn),
+		scrapeThreads: scrapeThreads,
 	}
 
 	router := chi.NewRouter()
@@ -60,12 +74,15 @@ func main() {
 	v1router.Get("/feed-follows/{FeedFollowID}", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollow))
 	v1router.Get("/feed-follows", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollows))
 	v1router.Delete("/feed-follows/{FeedFollowID}", apiCfg.middlewareAuth(apiCfg.handlerDeleteFeedFollow))
+	v1router.Get("/posts", apiCfg.middlewareAuth(apiCfg.handlerGetUserPosts))
 	router.Mount("/v1", v1router)
 	server := &http.Server{
 		Handler: router,
 		Addr:    ":" + portString,
 	}
-	log.Printf("Server starting on port %s", portString)
+	log.Printf("Starting scraper\n")
+	go weBeScrapin(apiCfg.DB, apiCfg.scrapeThreads, 1*time.Minute)
+	log.Printf("Server starting on port %s\n", portString)
 	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatalln(err)
